@@ -46,40 +46,40 @@ from object_detection.utils import label_map_util
 flags = tf.app.flags
 flags.DEFINE_string('data_dir', '', 'Root directory to raw pet dataset.')
 flags.DEFINE_string('output_dir', '', 'Path to directory to output TFRecords.')
-flags.DEFINE_string('label_map_path', 'data/pet_label_map.pbtxt',
+flags.DEFINE_string('label_map_path', 'data/label_items.txt',
                     'Path to label map proto')
-flags.DEFINE_boolean('faces_only', True, 'If True, generates bounding boxes '
-                     'for pet faces.  Otherwise generates bounding boxes (as '
-                     'well as segmentations for full pet bodies).  Note that '
-                     'in the latter case, the resulting files are much larger.')
-flags.DEFINE_string('mask_type', 'png', 'How to represent instance '
-                    'segmentation masks. Options are "png" or "numerical".')
+# flags.DEFINE_boolean('faces_only', True, 'If True, generates bounding boxes '
+#                      'for pet faces.  Otherwise generates bounding boxes (as '
+#                      'well as segmentations for full pet bodies).  Note that '
+#                      'in the latter case, the resulting files are much larger.')
+# flags.DEFINE_string('mask_type', 'png', 'How to represent instance '
+#                     'segmentation masks. Options are "png" or "numerical".')
 flags.DEFINE_integer('num_shards', 10, 'Number of TFRecord shards')
 
 FLAGS = flags.FLAGS
 
 
-def get_class_name_from_filename(file_name):
-  """Gets the class name from a file.
+# def get_class_name_from_filename(file_name):
+#   """Gets the class name from a file.
 
-  Args:
-    file_name: The file name to get the class name from.
-               ie. "american_pit_bull_terrier_105.jpg"
+#   Args:
+#     file_name: The file name to get the class name from.
+#                ie. "american_pit_bull_terrier_105.jpg"
 
-  Returns:
-    A string of the class name.
-  """
-  match = re.match(r'([A-Za-z_]+)(_[0-9]+\.jpg)', file_name, re.I)
-  return match.groups()[0]
+#   Returns:
+#     A string of the class name.
+#   """
+#   match = re.match(r'([A-Za-z_]+)(_[0-9]+\.jpg)', file_name, re.I)
+#   return match.groups()[0]
 
 
 def dict_to_tf_example(data,
-                       mask_path,
+                      
                        label_map_dict,
                        image_subdirectory,
                        ignore_difficult_instances=False,
-                       faces_only=True,
-                       mask_type='png'):
+                     
+                       ):
   """Convert XML derived dict to tf.Example proto.
 
   Notice that this function normalizes the bounding box coordinates provided
@@ -114,18 +114,18 @@ def dict_to_tf_example(data,
     raise ValueError('Image format not JPEG')
   key = hashlib.sha256(encoded_jpg).hexdigest()
 
-  with tf.gfile.GFile(mask_path, 'rb') as fid:
-    encoded_mask_png = fid.read()
-  encoded_png_io = io.BytesIO(encoded_mask_png)
-  mask = PIL.Image.open(encoded_png_io)
-  if mask.format != 'PNG':
-    raise ValueError('Mask format not PNG')
+#   with tf.gfile.GFile(mask_path, 'rb') as fid:
+#     encoded_mask_png = fid.read()
+#   encoded_png_io = io.BytesIO(encoded_mask_png)
+#   mask = PIL.Image.open(encoded_png_io)
+#   if mask.format != 'PNG':
+#     raise ValueError('Mask format not PNG')
 
-  mask_np = np.asarray(mask)
-  nonbackground_indices_x = np.any(mask_np != 2, axis=0)
-  nonbackground_indices_y = np.any(mask_np != 2, axis=1)
-  nonzero_x_indices = np.where(nonbackground_indices_x)
-  nonzero_y_indices = np.where(nonbackground_indices_y)
+#   mask_np = np.asarray(mask)
+#   nonbackground_indices_x = np.any(mask_np != 2, axis=0)
+#   nonbackground_indices_y = np.any(mask_np != 2, axis=1)
+#   nonzero_x_indices = np.where(nonbackground_indices_x)
+#   nonzero_y_indices = np.where(nonbackground_indices_y)
 
   width = int(data['size']['width'])
   height = int(data['size']['height'])
@@ -139,7 +139,7 @@ def dict_to_tf_example(data,
   truncated = []
   poses = []
   difficult_obj = []
-  masks = []
+#   masks = []
   if 'object' in data:
     for obj in data['object']:
       difficult = bool(int(obj['difficult']))
@@ -167,9 +167,9 @@ def dict_to_tf_example(data,
       classes.append(label_map_dict[class_name])
       truncated.append(int(obj['truncated']))
       poses.append(obj['pose'].encode('utf8'))
-      if not faces_only:
-        mask_remapped = (mask_np != 2).astype(np.uint8)
-        masks.append(mask_remapped)
+#       if not faces_only:
+#         mask_remapped = (mask_np != 2).astype(np.uint8)
+#         masks.append(mask_remapped)
 
   feature_dict = {
       'image/height': dataset_util.int64_feature(height),
@@ -191,21 +191,21 @@ def dict_to_tf_example(data,
       'image/object/truncated': dataset_util.int64_list_feature(truncated),
       'image/object/view': dataset_util.bytes_list_feature(poses),
   }
-  if not faces_only:
-    if mask_type == 'numerical':
-      mask_stack = np.stack(masks).astype(np.float32)
-      masks_flattened = np.reshape(mask_stack, [-1])
-      feature_dict['image/object/mask'] = (
-          dataset_util.float_list_feature(masks_flattened.tolist()))
-    elif mask_type == 'png':
-      encoded_mask_png_list = []
-      for mask in masks:
-        img = PIL.Image.fromarray(mask)
-        output = io.BytesIO()
-        img.save(output, format='PNG')
-        encoded_mask_png_list.append(output.getvalue())
-      feature_dict['image/object/mask'] = (
-          dataset_util.bytes_list_feature(encoded_mask_png_list))
+#   if not faces_only:
+#     if mask_type == 'numerical':
+#       mask_stack = np.stack(masks).astype(np.float32)
+#       masks_flattened = np.reshape(mask_stack, [-1])
+#       feature_dict['image/object/mask'] = (
+#           dataset_util.float_list_feature(masks_flattened.tolist()))
+#     elif mask_type == 'png':
+#       encoded_mask_png_list = []
+#       for mask in masks:
+#         img = PIL.Image.fromarray(mask)
+#         output = io.BytesIO()
+#         img.save(output, format='PNG')
+#         encoded_mask_png_list.append(output.getvalue())
+#       feature_dict['image/object/mask'] = (
+#           dataset_util.bytes_list_feature(encoded_mask_png_list))
 
   example = tf.train.Example(features=tf.train.Features(feature=feature_dict))
   return example
@@ -216,9 +216,9 @@ def create_tf_record(output_filename,
                      label_map_dict,
                      annotations_dir,
                      image_dir,
-                     examples,
-                     faces_only=True,
-                     mask_type='png'):
+                     examples
+                    
+                    ):
   """Creates a TFRecord file from examples.
 
   Args:
@@ -240,7 +240,7 @@ def create_tf_record(output_filename,
       if idx % 100 == 0:
         logging.info('On image %d of %d', idx, len(examples))
       xml_path = os.path.join(annotations_dir, 'xmls', example + '.xml')
-      mask_path = os.path.join(annotations_dir, 'trimaps', example + '.png')
+#       mask_path = os.path.join(annotations_dir, 'trimaps', example + '.png')
 
       if not os.path.exists(xml_path):
         logging.warning('Could not find %s, ignoring example.', xml_path)
@@ -253,11 +253,11 @@ def create_tf_record(output_filename,
       try:
         tf_example = dict_to_tf_example(
             data,
-            mask_path,
+           
             label_map_dict,
-            image_dir,
-            faces_only=faces_only,
-            mask_type=mask_type)
+            image_dir
+          
+            )
         if tf_example:
           shard_idx = idx % num_shards
           output_tfrecords[shard_idx].write(tf_example.SerializeToString())
@@ -289,29 +289,29 @@ def main(_):
 
   train_output_path = os.path.join(FLAGS.output_dir, 'pet_faces_train.record')
   val_output_path = os.path.join(FLAGS.output_dir, 'pet_faces_val.record')
-  if not FLAGS.faces_only:
-    train_output_path = os.path.join(FLAGS.output_dir,
-                                     'pets_fullbody_with_masks_train.record')
-    val_output_path = os.path.join(FLAGS.output_dir,
-                                   'pets_fullbody_with_masks_val.record')
+#   if not FLAGS.faces_only:
+#     train_output_path = os.path.join(FLAGS.output_dir,
+#                                      'pets_fullbody_with_masks_train.record')
+#     val_output_path = os.path.join(FLAGS.output_dir,
+#                                    'pets_fullbody_with_masks_val.record')
   create_tf_record(
       train_output_path,
       FLAGS.num_shards,
       label_map_dict,
       annotations_dir,
       image_dir,
-      train_examples,
-      faces_only=FLAGS.faces_only,
-      mask_type=FLAGS.mask_type)
+      train_examples
+      
+      )
   create_tf_record(
       val_output_path,
       FLAGS.num_shards,
       label_map_dict,
       annotations_dir,
       image_dir,
-      val_examples,
-      faces_only=FLAGS.faces_only,
-      mask_type=FLAGS.mask_type)
+      val_examples
+      
+     )
 
 
 if __name__ == '__main__':
